@@ -8,6 +8,15 @@ The code in this branch is licensed under GPLv3 (see LICENSE file)
 
 Feel free to modify or reuse the code here.
 
+##Fork info
+
+This fork aims to make ETHExplorer more friendly when dealing with rpc over internet, for e.g to monitor consortium blockchain.
+
+Main changes:
+- removed web3.filter in favour of 5s polling interval
+- fetch only newly added blocks and transactions
+- disable fetching stats, added simplified block time stats
+
 ##Reddit
 
 Discuss this project at: [Reddit Page on /r/ethreum](https://www.reddit.com/r/ethereum/comments/511j5a/new_ethereum_block_explorer_heavily_updated/)
