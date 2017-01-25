@@ -1,25 +1,10 @@
 //var cryptoSocket = require('crypto-socket');
 var BigNumber = require('bignumber.js');
 angular.module('ethExplorer')
-    .controller('mainCtrl', function ($rootScope, $scope, $location) {
+    .controller('mainCtrl', function ($rootScope, $scope, $location, $interval) {
 
-        // Display & update block list
-        getETHRates();
-        updateBlockList();
-        updateTXList();
-        updateStats();
-        getHashrate();
-
-        web3.eth.filter("latest", function(error, result){
-          if (!error) {
-            getETHRates();
-            updateBlockList();
-            updateTXList();
-            updateStats();
-            getHashrate();
-            $scope.$apply();
-          }
-        });
+        pollForChanges();
+        $interval(pollForChanges, 5000);
 
         $scope.processRequest= function(){
             var requestStr = $scope.ethRequest;
@@ -60,6 +45,11 @@ angular.module('ethExplorer')
             }
         };
 
+        function pollForChanges() {
+            updateBlockList();
+            updateTXList();
+            updateBlockTimeAndGasLimit();
+        }
 
         function goToBlockInfos(requestStr){
             $location.path('/block/'+requestStr);
@@ -84,22 +74,22 @@ angular.module('ethExplorer')
 
               if(blockNewest!==undefined){
 
-                // difficulty
-                $scope.difficulty = blockNewest.difficulty;
-                $scope.difficultyToExponential = blockNewest.difficulty.toExponential(3);
-
-                $scope.totalDifficulty = blockNewest.totalDifficulty;
-                $scope.totalDifficultyToExponential = blockNewest.totalDifficulty.toExponential(3);
-
-                $scope.totalDifficultyDividedByDifficulty = $scope.totalDifficulty.dividedBy($scope.difficulty);
-                $scope.totalDifficultyDividedByDifficulty_formatted = $scope.totalDifficultyDividedByDifficulty.toFormat(1);
-
-                $scope.AltsheetsCoefficient = $scope.totalDifficultyDividedByDifficulty.dividedBy($scope.blockNum);
-                $scope.AltsheetsCoefficient_formatted = $scope.AltsheetsCoefficient.toFormat(4);
-
-                // large numbers still printed nicely:
-                $scope.difficulty_formatted = $scope.difficulty.toFormat(0);
-                $scope.totalDifficulty_formatted = $scope.totalDifficulty.toFormat(0);
+                // // difficulty
+                // $scope.difficulty = blockNewest.difficulty;
+                // $scope.difficultyToExponential = blockNewest.difficulty.toExponential(3);
+                //
+                // $scope.totalDifficulty = blockNewest.totalDifficulty;
+                // $scope.totalDifficultyToExponential = blockNewest.totalDifficulty.toExponential(3);
+                //
+                // $scope.totalDifficultyDividedByDifficulty = $scope.totalDifficulty.dividedBy($scope.difficulty);
+                // $scope.totalDifficultyDividedByDifficulty_formatted = $scope.totalDifficultyDividedByDifficulty.toFormat(1);
+                //
+                // $scope.AltsheetsCoefficient = $scope.totalDifficultyDividedByDifficulty.dividedBy($scope.blockNum);
+                // $scope.AltsheetsCoefficient_formatted = $scope.AltsheetsCoefficient.toFormat(4);
+                //
+                // // large numbers still printed nicely:
+                // $scope.difficulty_formatted = $scope.difficulty.toFormat(0);
+                // $scope.totalDifficulty_formatted = $scope.totalDifficulty.toFormat(0);
 
                 // Gas Limit
                 $scope.gasLimit = new BigNumber(blockNewest.gasLimit).toFormat(0) + " m/s";
@@ -196,22 +186,49 @@ angular.module('ethExplorer')
 
         function updateTXList() {
             var currentTXnumber = web3.eth.blockNumber;
-            $scope.txNumber = currentTXnumber;
-            $scope.recenttransactions = [];
-            for (var i=0; i < 10 && currentTXnumber - i >= 0; i++) {
-              $scope.recenttransactions.push(web3.eth.getTransactionFromBlock(currentTXnumber - i));
+            if ($scope.recenttransactions) {
+              var diff = currentTXnumber - $scope.blockNumber;
+              var prevBlocks = $scope.recenttransactions.slice(0, $scope.blocks.length - diff);
+              var newBlocks = [];
+              for (var i=0; i < diff && currentTXnumber - i >= 0; i++) {
+                newBlocks.push(web3.eth.getTransactionFromBlock(currentTXnumber - i));
+              }
+              $scope.txNumber = currentTXnumber;
+              $scope.recenttransactions = newBlocks.concat(prevBlocks);
+            } else {
+              $scope.txNumber = currentTXnumber;
+              $scope.recenttransactions = [];
+              for (var i=0; i < 10 && currentTXnumber - i >= 0; i++) {
+                $scope.recenttransactions.push(web3.eth.getTransactionFromBlock(currentTXnumber - i));
+              }
             }
         }
 
         function updateBlockList() {
             var currentBlockNumber = web3.eth.blockNumber;
-            $scope.blockNumber = currentBlockNumber;
-            $scope.blocks = [];
-            for (var i=0; i < 10 && currentBlockNumber - i >= 0; i++) {
-              $scope.blocks.push(web3.eth.getBlock(currentBlockNumber - i));
+            if ($scope.blocks) {
+              var diff = currentBlockNumber - $scope.blockNumber;
+              console.log(diff + " blocks since last update")
+              var prevBlocks = $scope.blocks.slice(0, $scope.blocks.length - diff);
+              var newBlocks = [];
+              for (var i=0; i < diff && currentBlockNumber - i >= 0; i++) {
+                newBlocks.push(web3.eth.getBlock(currentBlockNumber - i));
+              }
+              $scope.blockNumber = currentBlockNumber;
+              $scope.blocks = newBlocks.concat(prevBlocks);
+            } else {
+              $scope.blockNumber = currentBlockNumber;
+              $scope.blocks = [];
+              for (var i=0; i < 10 && currentBlockNumber - i >= 0; i++) {
+                $scope.blocks.push(web3.eth.getBlock(currentBlockNumber - i));
+              }
             }
         }
 
+        function updateBlockTimeAndGasLimit() {
+          $scope.blocktime = $scope.blocks[0].timestamp - $scope.blocks[1].timestamp;
+          $scope.gasLimit = new BigNumber($scope.blocks[0].gasLimit).toFormat(0) + " m/s";
+        }
     });
 
 angular.module('filters', []).
